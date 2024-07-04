@@ -1,18 +1,15 @@
 import express from "express";
-// import User, { cities } from "./Models/User.js"; // Adjust the path based on your directory structure
-import bcrypt from "bcrypt";
 import crypto from "crypto"; // Import the 'crypto' module
-import jwt from "jsonwebtoken"; // Import the jsonwebtoken library
-import nodemailer from "nodemailer";
 const app = express();
 const port = process.env.PORT || 8000; // Use process.env.PORT for flexibility
 import cors from "cors";
-const SECRET = process.env.SECRET || "topsecret";
 import cookieParser from "cookie-parser";
 import multer from "multer";
 import bucket from "./Bucket/Firebase.js";
 import fs from "fs";
 import { tweetModel } from "./Models/User.js";
+import { Client, Environment } from 'square';
+
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
@@ -28,11 +25,57 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 app.use(express.json());
+const accessToken = 'EAAAl-uL8zdifRoRtC4SIc153km1PHEDndQrKzQQLU7FSa8eKsDXoUuxXCxtcRyC'; // Replace with your Square access token
+const environment = Environment.Production; // Use Environment.Production for live transactions
+const client = new Client({
+  environment,
+  accessToken,
+});
 
 
-app.get("/",(req,res)=>{
-res.send("Ahmed Raza")
-})
+// Payment APi 
+app.post('/process-payment', async (req, res) => {
+  const { email, cardNonce, amount, products } = req.body;
+
+  // Log the received data
+  console.log('Received payment data:', {
+    email,
+    cardNonce,
+    amount,
+    products,
+  });
+
+  console.log(products, "This is Product data");
+
+  try {
+    const idempotencyKey = crypto.randomBytes(12).toString('hex');
+    const { result } = await client.paymentsApi.createPayment({
+      sourceId: cardNonce,
+      amountMoney: {
+        amount: Number(amount), // Convert to number if necessary
+        currency: 'USD',
+      },
+      idempotencyKey,
+    });
+
+    if (result.payment.status !== 'COMPLETED') {
+      throw new Error(`Payment failed with status: ${result.payment.status}`);
+    }
+
+    console.log('Payment result:', result); // Log the payment result
+
+    // Convert BigInt values to String for serialization
+    const paymentResult = JSON.parse(JSON.stringify(result, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    ));
+
+    res.json({ message: 'Payment successful', paymentResult });
+  } catch (error) {
+    console.error('Error processing payment:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Important Api
 app.get("/api/v1/products", async (req, res) => {
