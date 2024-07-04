@@ -3,7 +3,6 @@ import crypto from "crypto"; // Import the 'crypto' module
 const app = express();
 const port = process.env.PORT || 8000; // Use process.env.PORT for flexibility
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import multer from "multer";
 import bucket from "./Bucket/Firebase.js";
 import fs from "fs";
@@ -11,10 +10,6 @@ import { tweetModel } from "./Models/User.js";
 import { Client, Environment } from 'square';
 
 
-app.use(cookieParser());
-app.use(express.urlencoded({ extended: false }));
-app.use(cors());
-app.options("*", cors());
 
 const storage = multer.diskStorage({
   destination: "/tmp",
@@ -24,7 +19,6 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
-app.use(express.json());
 
 
 const accessToken = 'EAAAl-uL8zdifRoRtC4SIc153km1PHEDndQrKzQQLU7FSa8eKsDXoUuxXCxtcRyC'; // Replace with your Square access token
@@ -34,6 +28,10 @@ const client = new Client({
   accessToken,
 });
 
+
+app.use(express.json());
+app.use(cors());
+app.options('*', cors()); // CORS for all routes
 
 
 app.get('/', (req, res) => {
