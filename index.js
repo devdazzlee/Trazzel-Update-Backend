@@ -25,11 +25,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 app.use(express.json());
+
+
 const accessToken = 'EAAAl-uL8zdifRoRtC4SIc153km1PHEDndQrKzQQLU7FSa8eKsDXoUuxXCxtcRyC'; // Replace with your Square access token
 const environment = Environment.Production; // Use Environment.Production for live transactions
 const client = new Client({
   environment,
   accessToken,
+});
+
+
+
+app.get('/', (req, res) => {
+  res.send("Trazzel Server Running");
 });
 
 
