@@ -40,14 +40,16 @@ app.get('/', (req, res) => {
 
 
 // Payment APi 
-app.post("/process-payment", async (req, res) => {
+app.post('/process-payment', async (req, res) => {
   const { email, cardNonce, amount, products } = req.body;
+  console.log('Received payment data:', { email, cardNonce, amount, products });
+
   try {
     const idempotencyKey = crypto.randomBytes(12).toString('hex');
     const { result } = await client.paymentsApi.createPayment({
       sourceId: cardNonce,
       amountMoney: {
-        amount: Number(amount), // Convert to number if necessary
+        amount: Number(amount),
         currency: 'USD',
       },
       idempotencyKey,
@@ -57,9 +59,7 @@ app.post("/process-payment", async (req, res) => {
       throw new Error(`Payment failed with status: ${result.payment.status}`);
     }
 
-    console.log('Payment result:', result); // Log the payment result
-
-    // Convert BigInt values to String for serialization
+    console.log('Payment result:', result);
     const paymentResult = JSON.parse(JSON.stringify(result, (key, value) =>
       typeof value === 'bigint' ? value.toString() : value
     ));
