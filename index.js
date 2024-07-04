@@ -42,19 +42,8 @@ app.get('/', (req, res) => {
 
 
 // Payment APi 
-app.post('/process-payment', async (req, res) => {
+app.post("/process-payment", async (req, res) => {
   const { email, cardNonce, amount, products } = req.body;
-
-  // Log the received data
-  console.log('Received payment data:', {
-    email,
-    cardNonce,
-    amount,
-    products,
-  });
-
-  console.log(products, "This is Product data");
-
   try {
     const idempotencyKey = crypto.randomBytes(12).toString('hex');
     const { result } = await client.paymentsApi.createPayment({
