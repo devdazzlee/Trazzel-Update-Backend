@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
 
 
 // Payment APi 
-app.get('/processpayment', async (req, res) => {
+app.get("api/v1/processpayment", (req, res) => {
   res.send("Api is Working")
 });
 
