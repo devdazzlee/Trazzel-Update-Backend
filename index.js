@@ -24,7 +24,7 @@ const upload = multer({ storage });
 
 
 const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-const environment = Environment.Sandbox; // Use Environment.Production for live transactions
+const environment = Environment.Production; // Use Environment.Production for live transactions
 const client = new Client({
   environment,
   accessToken,
