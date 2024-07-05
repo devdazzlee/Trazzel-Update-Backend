@@ -9,7 +9,9 @@ import fs from "fs";
 import { tweetModel } from "./Models/User.js";
 import { Client, Environment } from 'square';
 
-
+app.use(express.json());
+app.use(cors());
+app.options('*', cors()); // CORS for all routes
 
 const storage = multer.diskStorage({
   destination: "/tmp",
@@ -21,29 +23,47 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-const accessToken = 'EAAAl-uL8zdifRoRtC4SIc153km1PHEDndQrKzQQLU7FSa8eKsDXoUuxXCxtcRyC'; // Replace with your Square access token
-const environment = Environment.Production; // Use Environment.Production for live transactions
+const accessToken = process.env.SQUARE_ACCESS_TOKEN;
+const environment = Environment.Sandbox; // Use Environment.Production for live transactions
 const client = new Client({
   environment,
   accessToken,
 });
 
-
-app.use(express.json());
-app.use(cors());
-app.options('*', cors()); // CORS for all routes
-
-
 app.get('/', (req, res) => {
   res.send("Trazzel Server Running");
 });
 
+app.post("/process-payment", async (req, res) => {
+  const { email, cardNonce, amount, products } = req.body;
+  try {
+    const idempotencyKey = crypto.randomBytes(12).toString('hex');
+    const { result } = await client.paymentsApi.createPayment({
+      sourceId: cardNonce,
+      amountMoney: {
+        amount: Number(amount), // Convert to number if necessary
+        currency: 'USD',
+      },
+      idempotencyKey,
+    });
 
-// Payment APi 
-app.get("api/v1/processpayment", (req, res) => {
-  res.send("Api is Working")
+    if (result.payment.status !== 'COMPLETED') {
+      throw new Error(`Payment failed with status: ${result.payment.status}`);
+    }
+
+    console.log('Payment result:', result); // Log the payment result
+
+    // Convert BigInt values to String for serialization
+    const paymentResult = JSON.parse(JSON.stringify(result, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    ));
+
+    res.json({ message: 'Payment successful', paymentResult });
+  } catch (error) {
+    console.error('Error processing payment:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
-
 
 // Important Api
 app.get("/api/v1/products", async (req, res) => {

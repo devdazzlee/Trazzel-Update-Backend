@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
 });
 
 
-
 const productSchema = new mongoose.Schema({
 projectName:{ type: String },
 projectDescription:  { type: String }, 
@@ -21,26 +20,6 @@ projectPrice : {type : Number },
 export const tweetModel = mongoose.model('ProductsAll', productSchema);
   
 
-
-
-
-const productSchema2 = new mongoose.Schema({
-    projectName:{ type: String },
-    projectVillage : { type: String },
-    projectCategory: { type: String },
-    amountRequired:  { type: Number },
-    collectedAmount:  { type: Number },  
-    projectDescription:  { type: String }, 
-    imageUrl: { type: Array  ,  required: true },
-    createdOn: { type: Date, default: Date.now },
-    paymentDetail :{type : Array},
-    });
-export const tweetModel2 = mongoose.model('ProductsAll2', productSchema2);
-
-const citiesSchema = new mongoose.Schema({
-    cities: [{ type: String }],
-    });
-export const citiesModel = mongoose.model('Cities', citiesSchema);
 
 
 
