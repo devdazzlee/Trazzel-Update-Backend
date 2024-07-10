@@ -49,6 +49,34 @@ app.get('/', (req, res) => {
 });
 
 
+// Email Api 
+app.post('/api/messages', async (req, res) => {
+  const { name, email, phoneNumber, callTime, description, agreeToContact } = req.body;
+
+  const mailOptions = {
+    from: 'ahmed.radiantcortex@gmail.com',
+    to: 'contact@strgatemedia.com',
+    subject: 'New Contact Form Submission',
+    html: `
+      <h1>New Contact Form Submission</h1>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Phone Number:</strong> ${phoneNumber}</p>
+      <p><strong>Preferred Call Time:</strong> ${callTime}</p>
+      <p><strong>Description:</strong> ${description}</p>
+      <p><strong>Agree to Contact:</strong> ${agreeToContact ? 'Yes' : 'No'}</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).send({ message: 'Form submitted and email sent successfully!' });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).send({ message: 'Error sending email', error });
+  }
+});
+
 app.post('/process-payment', async (req, res) => {
   const { sourceId, amount, productDetail, clientEmail, deliveryDetails } = req.body;
   console.log(clientEmail);
