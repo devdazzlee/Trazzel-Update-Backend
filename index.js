@@ -1,5 +1,4 @@
 import express from "express";
-import crypto from "crypto"; // Import the 'crypto' module
 const app = express();
 const port = process.env.PORT || 8000; // Use process.env.PORT for flexibility
 import cors from "cors";
@@ -8,10 +7,23 @@ import bucket from "./Bucket/Firebase.js";
 import fs from "fs";
 import { tweetModel } from "./Models/User.js";
 import { Client, Environment } from 'square';
+import { randomUUID } from "crypto";
+import bodyParser from 'body-parser';
+import nodemailer from 'nodemailer';
 
 app.use(express.json());
 app.use(cors());
 app.options('*', cors()); // CORS for all routes
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'ahmed.radiantcortex@gmail.com',
+    pass: 'mreljejirzhndetb',
+  },
+});
+
+
 
 const storage = multer.diskStorage({
   destination: "/tmp",
@@ -22,48 +34,153 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-
-const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-const environment = Environment.Production; // Use Environment.Production for live transactions
-const client = new Client({
-  environment,
-  accessToken,
+const { paymentsApi } = new Client({
+  accessToken: process.env.SQUARE_ACCESS_TOKEN,
+  environment : Environment.Sandbox,
 });
+// Custom JSON replacer function to handle BigInt
+const jsonReplacer = (key, value) => {
+  return typeof value === 'bigint' ? value.toString() : value;
+};
+
 
 app.get('/', (req, res) => {
   res.send("Trazzel Server Running");
 });
 
-app.post("/process-payment", async (req, res) => {
-  const { email, cardNonce, amount, products } = req.body;
+
+app.post('/process-payment', async (req, res) => {
+  const { sourceId, amount, productDetail, clientEmail } = req.body;
+  console.log(clientEmail);
+  console.log("Product Detail", productDetail);
+
   try {
-    const idempotencyKey = crypto.randomBytes(12).toString('hex');
-    const { result } = await client.paymentsApi.createPayment({
-      sourceId: cardNonce,
+    const amountInCents = Math.round(amount * 100);
+    const { result } = await paymentsApi.createPayment({
+      idempotencyKey: randomUUID(),
+      sourceId,
       amountMoney: {
-        amount: Number(amount), // Convert to number if necessary
         currency: 'USD',
+        amount: amountInCents,
       },
-      idempotencyKey,
+      note: JSON.stringify(productDetail),
+      buyerEmail: clientEmail, // Pass client email to Square payment API
     });
 
-    if (result.payment.status !== 'COMPLETED') {
-      throw new Error(`Payment failed with status: ${result.payment.status}`);
-    }
+    console.log(result);
 
-    console.log('Payment result:', result); // Log the payment result
+    // Fetch product details from the database
+    const productIds = productDetail.map(item => item.id);
+    const products = await tweetModel.find({ _id: { $in: productIds } });
 
-    // Convert BigInt values to String for serialization
-    const paymentResult = JSON.parse(JSON.stringify(result, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    ));
+    // Prepare product details for email
+    let productInfo = '';
+    products.forEach(product => {
+      const quantity = productDetail.find(item => item.id === product._id.toString()).quantity;
+      productInfo += `<p><strong>Product:</strong> ${product.projectName}<br><strong>Quantity:</strong> ${quantity}<br><strong>Price:</strong> ${product.projectPrice}</p>`;
+    });
 
-    res.json({ message: 'Payment successful', paymentResult });
+    const clientMailOptions = {
+      from: 'ahmed.radiantcortex@gmail.com',
+      to: clientEmail,
+      subject: 'Your Order Confirmation',
+      html: `
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                color: #333;
+              }
+
+              .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+              }
+
+              h1 {
+                color: #007BFF;
+              }
+
+              p {
+                line-height: 1.6;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Thank You for Your Purchase!</h1>
+              <h2>Order Details:</h2>
+              ${productInfo}
+              <p>Total Amount: USD ${amount}</p>
+            </div>
+          </body>
+        </html>
+      `,
+    };
+
+    const ownerMailOptions = {
+      from: 'ahmed.radiantcortex@gmail.com',
+      to: 'tr@strgatemedia.com',
+      subject: 'New Order Received',
+      html: `
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                color: #333;
+              }
+
+              .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+              }
+
+              h1 {
+                color: #007BFF;
+              }
+
+              p {
+                line-height: 1.6;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>New Order Received</h1>
+              <h2>Order Details:</h2>
+              ${productInfo}
+              <p>Total Amount: USD ${amount}</p>
+              <p><strong>Client Email:</strong> ${clientEmail}</p>
+            </div>
+          </body>
+        </html>
+      `,
+    };
+
+    // Send emails
+    await transporter.sendMail(clientMailOptions);
+    await transporter.sendMail(ownerMailOptions);
+
+    const stringifiedResult = JSON.stringify(result, jsonReplacer);
+    res.status(200).json(JSON.parse(stringifiedResult));
   } catch (error) {
-    console.error('Error processing payment:', error.message);
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Important Api
 app.get("/api/v1/products", async (req, res) => {
