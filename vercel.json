@@ -13,7 +13,8 @@
       { "src": "/api/v1/customer/:id", "dest": "/index.js" },
       { "src": "/api/v1/updates/:id", "dest": "/index.js" },
       { "src": "/api/v1/Book-detail/:id", "dest": "/index.js" },
-      { "src": "/process-payment", "dest": "/index.js" }
+      { "src": "/process-payment", "dest": "/index.js" },
+      { "src": "/api/messages", "dest": "/index.js" }
     ]
   }
   
