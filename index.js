@@ -50,9 +50,10 @@ app.get('/', (req, res) => {
 
 
 app.post('/process-payment', async (req, res) => {
-  const { sourceId, amount, productDetail, clientEmail } = req.body;
+  const { sourceId, amount, productDetail, clientEmail, deliveryDetails } = req.body;
   console.log(clientEmail);
   console.log("Product Detail", productDetail);
+  console.log("Delivery Details", deliveryDetails);
 
   try {
     const amountInCents = Math.round(amount * 100);
@@ -79,6 +80,19 @@ app.post('/process-payment', async (req, res) => {
       const quantity = productDetail.find(item => item.id === product._id.toString()).quantity;
       productInfo += `<p><strong>Product:</strong> ${product.projectName}<br><strong>Quantity:</strong> ${quantity}<br><strong>Price:</strong> ${product.projectPrice}</p>`;
     });
+
+    // Format delivery details for email
+    const deliveryInfo = `
+      <p><strong>Delivery Information:</strong></p>
+      <p>Country/Region: ${deliveryDetails.country}</p>
+      <p>First Name: ${deliveryDetails.firstName}</p>
+      <p>Last Name: ${deliveryDetails.lastName}</p>
+      <p>Address: ${deliveryDetails.address}</p>
+      <p>Apartment, Suite, etc.: ${deliveryDetails.apartment}</p>
+      <p>City: ${deliveryDetails.city}</p>
+      <p>State: ${deliveryDetails.state}</p>
+      <p>ZIP Code: ${deliveryDetails.zipCode}</p>
+    `;
 
     const clientMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
@@ -118,6 +132,7 @@ app.post('/process-payment', async (req, res) => {
               <h2>Order Details:</h2>
               ${productInfo}
               <p>Total Amount: USD ${amount}</p>
+              ${deliveryInfo}
             </div>
           </body>
         </html>
@@ -126,7 +141,7 @@ app.post('/process-payment', async (req, res) => {
 
     const ownerMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
-      to: 'stargatemediallc@gmail.com',
+      to: 'ahmed.gpt.1998@gmail.com',
       subject: 'New Order Received',
       html: `
         <html>
@@ -163,6 +178,7 @@ app.post('/process-payment', async (req, res) => {
               ${productInfo}
               <p>Total Amount: USD ${amount}</p>
               <p><strong>Client Email:</strong> ${clientEmail}</p>
+              ${deliveryInfo}
             </div>
           </body>
         </html>
@@ -180,7 +196,6 @@ app.post('/process-payment', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // Important Api
 app.get("/api/v1/products", async (req, res) => {
