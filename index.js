@@ -126,7 +126,7 @@ app.post('/process-payment', async (req, res) => {
 
     const ownerMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
-      to: 'tr@strgatemedia.com',
+      to: 'stargatemediallc@gmail.com',
       subject: 'New Order Received',
       html: `
         <html>
