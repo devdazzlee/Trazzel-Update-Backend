@@ -23,8 +23,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
-
 const storage = multer.diskStorage({
   destination: "/tmp",
   filename: function (req, file, cb) {
@@ -47,7 +45,6 @@ const jsonReplacer = (key, value) => {
 app.get('/', (req, res) => {
   res.send("Trazzel Server Running");
 });
-
 
 // Email Api 
 app.post('/api/messages', async (req, res) => {
