@@ -52,7 +52,7 @@ app.post('/api/messages', async (req, res) => {
 
   const mailOptions = {
     from: 'ahmed.radiantcortex@gmail.com',
-    to: 'ahmed.gpt.1998@gmail.com',
+    to: 'contact@strgatemedia.com',
     subject: 'New Contact Form Submission',
     html: `
       <h1>New Contact Form Submission</h1>
