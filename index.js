@@ -36,7 +36,7 @@ const upload = multer({ storage });
 
 const { paymentsApi } = new Client({
   accessToken: process.env.SQUARE_ACCESS_TOKEN,
-  environment : Environment.Production,
+  environment : Environment.Sandbox,
 });
 // Custom JSON replacer function to handle BigInt
 const jsonReplacer = (key, value) => {
@@ -82,7 +82,7 @@ app.post('/api/messages', async (req, res) => {
 
 app.post('/process-payment', async (req, res) => {
   const { sourceId, amount, productDetail, clientEmail, deliveryDetails } = req.body;
-
+console.log(amount)
   console.log("deliveryDetails", deliveryDetails);
   console.log("Address", deliveryDetails.address);
   console.log("city", deliveryDetails.city);
@@ -179,7 +179,7 @@ app.post('/process-payment', async (req, res) => {
 
     const ownerMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
-      to: 'stargatemediallc@gmail.com',
+      to: 'buscemapeter46@gmail.com',
       subject: 'New Order Received',
       html: `
         <html>
@@ -322,6 +322,7 @@ app.post('/process-payment', async (req, res) => {
     }
   }
 });
+
 
 // Important Api
 app.get("/api/v1/products", async (req, res) => {
