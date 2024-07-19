@@ -1,4 +1,4 @@
-import express from "express";
+  import express from "express";
 const app = express();
 const port = process.env.PORT || 8000; // Use process.env.PORT for flexibility
 import cors from "cors";
@@ -116,6 +116,7 @@ app.post('/process-payment', async (req, res) => {
     const productIds = productDetail.map(item => item.id);
     const products = await tweetModel.find({ _id: { $in: productIds } });
 
+
     let productInfo = '';
     products.forEach(product => {
       const quantity = productDetail.find(item => item.id === product._id.toString()).quantity;
@@ -222,7 +223,7 @@ app.post('/process-payment', async (req, res) => {
     await transporter.sendMail(clientMailOptions);
     await transporter.sendMail(ownerMailOptions);
 
-    const hasHardcover = productDetail.some(item => item.selectedFormat === 'hardcover');
+    const hasHardcover = products.some(product => productDetail.find(item => item.id === product._id.toString()).selectedFormat === 'hardcover');
 
     if (hasHardcover) {
       const options = {
@@ -252,31 +253,37 @@ app.post('/process-payment', async (req, res) => {
             contact_email: clientEmail,
             country_alpha2: 'US'
           },
-          parcels: productDetail.filter(item => item.selectedFormat === 'hardcover').map(item => ({
-            items: [
-              {
-                actual_weight: item.weight,
-                description: item.projectDescription,
-                declared_currency: 'USD',
-                declared_customs_value: item.projectPrice,
+          parcels: products.map(product => {
+            const item = productDetail.find(p => p.id === product._id.toString() && p.selectedFormat === 'hardcover');
+            if (item) {
+              return {
+                items: [
+                  {
+                    actual_weight: product.weight,
+                    description: product.projectDescription.substring(0, 200),
+                    declared_currency: 'USD',
+                    declared_customs_value: product.projectPrice,
+                    dimensions: {
+                      length: product.height,
+                      width: product.width,
+                      height: product.height
+                    },
+                    item_category_id: product._id,
+                    hs_code: Math.random(1).toFixed(2),
+                    category: "Book",
+                    selectedFormat: item.selectedFormat // Include the selected format here
+                  }
+                ],
+                weight: product.weight,
                 dimensions: {
-                  length: item.height,
-                  width: item.width,
-                  height: item.height
-                },
-                item_category_id: item._id,
-                hs_code: item.hsCode,
-                category: "Book",
-                selectedFormat: item.selectedFormat // Include the selected format here
-              }
-            ],
-            weight: item.weight,
-            dimensions: {
-              length: item.height,
-              width: item.width,
-              height: item.height
+                  length: product.height,
+                  width: product.width,
+                  height: product.height
+                }
+              };
             }
-          })),
+            return null;
+          }).filter(parcel => parcel !== null),
           courier_selection: { allow_courier_fallback: false, apply_shipping_rules: true },
           incoterms: 'DDU',
           insurance: { is_insured: false },
