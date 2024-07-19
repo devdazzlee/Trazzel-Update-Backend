@@ -16,6 +16,10 @@ imageUrl: { type: Array  ,  required: true },
 createdOn: { type: Date, default: Date.now },
 paymentDetail :{type : Array}, 
 projectPrice : {type : Number },
+hardcoverPrice :{type : Number},
+weight : {type :String},
+width :{type :String},
+height : {type : String},
 });
 export const tweetModel = mongoose.model('ProductsAll', productSchema);
   

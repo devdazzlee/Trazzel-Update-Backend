@@ -10,6 +10,8 @@ import { Client, Environment } from 'square';
 import { randomUUID } from "crypto";
 import bodyParser from 'body-parser';
 import nodemailer from 'nodemailer';
+import axios from "axios";
+
 
 app.use(express.json());
 app.use(cors());
@@ -40,6 +42,8 @@ const { paymentsApi } = new Client({
 const jsonReplacer = (key, value) => {
   return typeof value === 'bigint' ? value.toString() : value;
 };
+
+
 
 
 app.get('/', (req, res) => {
@@ -74,14 +78,23 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
+// Payment Api 
+
 app.post('/process-payment', async (req, res) => {
   const { sourceId, amount, productDetail, clientEmail, deliveryDetails } = req.body;
-  console.log(clientEmail);
-  console.log("Product Detail", productDetail);
-  console.log("Delivery Details", deliveryDetails);
+
+  console.log("deliveryDetails", deliveryDetails);
+  console.log("Address", deliveryDetails.address);
+  console.log("city", deliveryDetails.city);
+  console.log("contact_name:", `${deliveryDetails.firstName} ${deliveryDetails.lastName}`);
+  console.log("contact_phone:", deliveryDetails.phoneNumber);
+  console.log("contact_email", clientEmail);
+  console.log("country_alpha2", deliveryDetails.zipCode);
 
   try {
+    const totalWeight = productDetail.reduce((total, item) => total + (item.weight || 0), 0);
     const amountInCents = Math.round(amount * 100);
+
     const { result } = await paymentsApi.createPayment({
       idempotencyKey: randomUUID(),
       sourceId,
@@ -90,23 +103,25 @@ app.post('/process-payment', async (req, res) => {
         amount: amountInCents,
       },
       note: JSON.stringify(productDetail),
-      buyerEmail: clientEmail, // Pass client email to Square payment API
+      buyerEmail: clientEmail,
     });
 
     console.log(result);
 
-    // Fetch product details from the database
+    productDetail.forEach(item => {
+      console.log("Product ID:", item.id);
+      console.log("Selected Format:", item.selectedFormat); // Logging the selected format
+    });
+
     const productIds = productDetail.map(item => item.id);
     const products = await tweetModel.find({ _id: { $in: productIds } });
 
-    // Prepare product details for email
     let productInfo = '';
     products.forEach(product => {
       const quantity = productDetail.find(item => item.id === product._id.toString()).quantity;
       productInfo += `<p><strong>Product:</strong> ${product.projectName}<br><strong>Quantity:</strong> ${quantity}<br><strong>Price:</strong> ${product.projectPrice}</p>`;
     });
 
-    // Format delivery details for email
     const deliveryInfo = `
       <p><strong>Delivery Information:</strong></p>
       <p>Country/Region: ${deliveryDetails.country}</p>
@@ -132,7 +147,6 @@ app.post('/process-payment', async (req, res) => {
                 background-color: #f4f4f4;
                 color: #333;
               }
-
               .container {
                 max-width: 600px;
                 margin: 0 auto;
@@ -141,11 +155,9 @@ app.post('/process-payment', async (req, res) => {
                 border-radius: 8px;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
               }
-
               h1 {
                 color: #007BFF;
               }
-
               p {
                 line-height: 1.6;
               }
@@ -166,7 +178,7 @@ app.post('/process-payment', async (req, res) => {
 
     const ownerMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
-      to: 'stargatemediallc@gmail.com',
+      to: 'buscemapeter46@gmail.com',
       subject: 'New Order Received',
       html: `
         <html>
@@ -177,7 +189,6 @@ app.post('/process-payment', async (req, res) => {
                 background-color: #f4f4f4;
                 color: #333;
               }
-
               .container {
                 max-width: 600px;
                 margin: 0 auto;
@@ -186,11 +197,9 @@ app.post('/process-payment', async (req, res) => {
                 border-radius: 8px;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
               }
-
               h1 {
                 color: #007BFF;
               }
-
               p {
                 line-height: 1.6;
               }
@@ -210,15 +219,100 @@ app.post('/process-payment', async (req, res) => {
       `,
     };
 
-    // Send emails
     await transporter.sendMail(clientMailOptions);
     await transporter.sendMail(ownerMailOptions);
 
-    const stringifiedResult = JSON.stringify(result, jsonReplacer);
-    res.status(200).json(JSON.parse(stringifiedResult));
+    const hasHardcover = productDetail.some(item => item.selectedFormat === 'hardcover');
+
+    if (hasHardcover) {
+      const options = {
+        method: 'POST',
+        url: 'https://api.easyship.com/2023-01/shipments',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+          authorization: 'Bearer prod_ovRZFJGDTXPGbv0cc9E6yyemf7T81rZ+ZPqZwU91Z6w='
+        },
+        data: {
+          origin_address: {
+            line_1: '8801 Shore Rd Apt 1A-West NY 11209',
+            city: 'Brooklyn',
+            contact_name: 'traazel Rosario',
+            contact_phone: '+1 929-539-9786',
+            contact_email: 'contact@strgatemedia.com',
+            company_name: 'Stargate Media'
+          },
+          destination_address: {
+            line_1: deliveryDetails.address,
+            city: deliveryDetails.city,
+            state: deliveryDetails.state,
+            postal_code: deliveryDetails.zipCode,
+            contact_name: `${deliveryDetails.firstName} ${deliveryDetails.lastName}`,
+            contact_phone: deliveryDetails.phoneNumber,
+            contact_email: clientEmail,
+            country_alpha2: 'US'
+          },
+          parcels: productDetail.filter(item => item.selectedFormat === 'hardcover').map(item => ({
+            items: [
+              {
+                actual_weight: item.weight,
+                description: item.projectDescription,
+                declared_currency: 'USD',
+                declared_customs_value: item.projectPrice,
+                dimensions: {
+                  length: item.height,
+                  width: item.width,
+                  height: item.height
+                },
+                item_category_id: item._id,
+                hs_code: item.hsCode,
+                category: "Book",
+                selectedFormat: item.selectedFormat // Include the selected format here
+              }
+            ],
+            weight: item.weight,
+            dimensions: {
+              length: item.height,
+              width: item.width,
+              height: item.height
+            }
+          })),
+          courier_selection: { allow_courier_fallback: false, apply_shipping_rules: true },
+          incoterms: 'DDU',
+          insurance: { is_insured: false },
+          shipping_settings: {
+            additional_services: { qr_code: 'none' },
+            buy_label: false,
+            buy_label_synchronous: false,
+            printing_options: { commercial_invoice: 'A4', format: 'png', label: '4x6', packing_slip: '4x6' },
+            units: { dimensions: 'cm', weight: 'kg' }
+          }
+        }
+      };
+
+      const shipmentResponse = await axios.request(options);
+      console.log(shipmentResponse.data);
+
+      const resultString = JSON.stringify(result, (key, value) => 
+        typeof value === 'bigint' ? value.toString() : value
+      );
+
+      res.status(200).json({ payment: JSON.parse(resultString), shipment: shipmentResponse.data });
+    } else {
+      const resultString = JSON.stringify(result, (key, value) => 
+        typeof value === 'bigint' ? value.toString() : value
+      );
+
+      res.status(200).json({ payment: JSON.parse(resultString), message: "Ebook order, no shipment created" });
+    }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message });
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      res.status(error.response.status).json({ error: error.response.data });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -260,7 +354,7 @@ app.post("/api/v1/AddProduct", upload.any(), (req, res) => {
   try {
     const body = req.body;
     console.log(body.projectName);
-    console.log();
+    console.log(body);
 
     console.log("req.body: ", req.body);
     console.log("req.files: ", req.files);
@@ -309,8 +403,12 @@ app.post("/api/v1/AddProduct", upload.any(), (req, res) => {
         let addProduct = new tweetModel({
           projectName: body.projectName,
           projectDescription: body.projectDescription,
+          hardcoverPrice : body.hardcoverPrice,
           imageUrl: array,
-          projectPrice : body.projectPrice
+          projectPrice : body.projectPrice,
+          weight :body.weight ,
+          width :body.width,
+          height : body.height,
         });
 
         return addProduct.save();
@@ -354,6 +452,7 @@ app.delete("/api/v1/customer/:id", async (req, res) => {
 app.post("/api/v1/updates/:id", upload.any(), async (req, res) => {
   try {
     const body = req.body;
+    console.log("body" , body)
     const id = req.params.id;
     console.log("req.body: ", req.body);
     console.log("req.files: ", req.files);
@@ -405,6 +504,8 @@ app.post("/api/v1/updates/:id", upload.any(), async (req, res) => {
             projectName: body.projectName,
             projectDescription: body.projectDescription,
             imageUrl: array,
+            hardcoverPrice : body.hardcoverPrice,
+            projectPrice : body.price
           },
           { new: true }
         )
