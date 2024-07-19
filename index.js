@@ -36,7 +36,7 @@ const upload = multer({ storage });
 
 const { paymentsApi } = new Client({
   accessToken: process.env.SQUARE_ACCESS_TOKEN,
-  environment : Environment.Sandbox,
+  environment : Environment.Production,
 });
 // Custom JSON replacer function to handle BigInt
 const jsonReplacer = (key, value) => {
