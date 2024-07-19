@@ -179,7 +179,7 @@ console.log(amount)
 
     const ownerMailOptions = {
       from: 'ahmed.radiantcortex@gmail.com',
-      to: 'buscemapeter46@gmail.com',
+      to: 'stargatemediallc@gmail.com',
       subject: 'New Order Received',
       html: `
         <html>
