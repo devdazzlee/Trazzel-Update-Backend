@@ -20,8 +20,8 @@ app.options('*', cors()); // CORS for all routes
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'ahmed.radiantcortex@gmail.com',
-    pass: 'mreljejirzhndetb',
+    user: 'strgatemediallc@gmail.com',
+    pass: 'lyoltyxttfrdbcjk',
   },
 });
 
